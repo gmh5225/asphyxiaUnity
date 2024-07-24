@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using Unity.Networking.Transport;
@@ -17,11 +18,21 @@ namespace Netcode
     {
         public ulong ServiceId;
         public ConnectionAddressData ServiceData;
+        public string LocalEndPoint;
         private FieldInfo _driverFieldInfo;
         private TransportEventDelegate _connectionManagerEvent;
         private NetworkDriver _driver => (NetworkDriver)_driverFieldInfo.GetValue(this);
 
         private void Start() => _driverFieldInfo = typeof(UnityTransport).GetField("m_Driver", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private void OnGUI()
+        {
+            if (string.IsNullOrEmpty(LocalEndPoint))
+                return;
+            GUILayout.BeginArea(new Rect(10, 120, 300, 9999));
+            GUILayout.Label($"<b>Local</b>: {LocalEndPoint}");
+            GUILayout.EndArea();
+        }
 
         public override void Initialize(NetworkManager networkManager = null)
         {
@@ -45,6 +56,42 @@ namespace Netcode
         {
             if (clientId == ServiceId)
             {
+                Debug.LogWarning(eventType);
+                switch (eventType)
+                {
+                    case NetworkEvent.Data:
+                        var address = Encoding.UTF8.GetString(payload.AsSpan(0, payload.Count - 4));
+                        if (payload[0] == 0)
+                        {
+                            LocalEndPoint = address;
+                        }
+                        else if (ServerClientId == 0)
+                        {
+                            var split = address.Split(':');
+                            NetworkEndPoint.Parse(split[0], ushort.Parse(split[1]));
+                            var connection = _driver.Connect(NetworkEndPoint.Parse(split[0], ushort.Parse(split[1])));
+                            _driver.Disconnect(connection);
+                        }
+
+                        break;
+                    case NetworkEvent.Connect:
+                        if (ServerClientId != 0)
+                        {
+                            var serverEndPoint = ConnectionData.ServerEndPoint;
+                            var serverAddress = serverEndPoint.Address;
+                            var buffer = Encoding.UTF8.GetBytes(serverAddress);
+                            Send(clientId, new ArraySegment<byte>(buffer), NetworkDelivery.Reliable);
+                        }
+
+                        break;
+                    case NetworkEvent.Disconnect:
+                        break;
+                    case NetworkEvent.TransportFailure:
+                        break;
+                    case NetworkEvent.Nothing:
+                        break;
+                }
+
                 return;
             }
 
