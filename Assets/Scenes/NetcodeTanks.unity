@@ -424,7 +424,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1282001517}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a3f890b7fe6e49b08caa026ae3831522, type: 3}
+  m_Script: {fileID: 11500000, guid: a6bcd812fa6c4f54948b7c22a1009e5a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   m_ProtocolType: 0
@@ -442,9 +442,11 @@ MonoBehaviour:
     PacketDelayMS: 0
     PacketJitterMS: 0
     PacketDropRate: 0
-  ServiceIPAddress: 127.0.0.1
-  ServicePort: 7778
-  MaxPeers: 100
+  ServiceId: 0
+  ServiceData:
+    Address: 127.0.0.1
+    Port: 7778
+    ServerListenAddress: 
 --- !u!1 &2054208274
 GameObject:
   m_ObjectHideFlags: 0
