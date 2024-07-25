@@ -20,9 +20,14 @@ namespace Netcode
         public ConnectionAddressData ServiceData;
         public string LocalEndPoint;
         private FieldInfo _driverFieldInfo;
+        private FieldInfo _stateFieldInfo;
         private NetworkDriver _driver => (NetworkDriver)_driverFieldInfo.GetValue(this);
 
-        private void Start() => _driverFieldInfo = typeof(UnityTransport).GetField("m_Driver", BindingFlags.Instance | BindingFlags.NonPublic);
+        private void Start()
+        {
+            _driverFieldInfo = typeof(UnityTransport).GetField("m_Driver", BindingFlags.Instance | BindingFlags.NonPublic);
+            _stateFieldInfo = typeof(UnityTransport).GetField("m_State", BindingFlags.Instance | BindingFlags.NonPublic);
+        }
 
         private void OnGUI()
         {
@@ -77,6 +82,7 @@ namespace Netcode
                             var split = address.Split(':');
                             var connection = _driver.Connect(NetworkEndPoint.Parse(split[0], ushort.Parse(split[1])));
                             _driver.Disconnect(connection);
+                            _stateFieldInfo.SetValue(this, 1);
                         }
 
                         break;
@@ -141,9 +147,8 @@ namespace Netcode
                 return false;
             }
 
-            var fieldInfo = typeof(UnityTransport).GetField("m_State", BindingFlags.Instance | BindingFlags.NonPublic);
             ServiceId = ParseClientId(serviceConnection);
-            fieldInfo.SetValue(this, 1);
+            _stateFieldInfo.SetValue(this, 1);
             return true;
         }
 
