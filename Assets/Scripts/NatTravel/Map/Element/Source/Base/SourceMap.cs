@@ -1,3 +1,8 @@
+//------------------------------------------------------------
+// Erinn Network
+// Copyright © 2024 Molth Nevin. All rights reserved.
+//------------------------------------------------------------
+
 #if UNITY_2021_3_OR_NEWER
 using System.Collections.Generic;
 #endif
@@ -7,9 +12,9 @@ using System.Collections.Generic;
 namespace Erinn
 {
     /// <summary>
-    ///     Map
+    ///     Mapping
     /// </summary>
-    public sealed class Map<TKey, TValue> where TKey : notnull where TValue : notnull
+    public abstract class SourceMap<TKey, TValue> : ISourceMap<TKey, TValue>, IDuplicateMap<TKey, TValue> where TKey : unmanaged where TValue : notnull
     {
         /// <summary>
         ///     Key
@@ -24,7 +29,7 @@ namespace Erinn
         /// <summary>
         ///     Structure
         /// </summary>
-        public Map()
+        protected SourceMap()
         {
             _keys = new Dictionary<TKey, TValue>();
             _values = new Dictionary<TValue, TKey>();
@@ -34,11 +39,16 @@ namespace Erinn
         ///     Structure
         /// </summary>
         /// <param name="capacity">Capacity</param>
-        public Map(int capacity)
+        protected SourceMap(int capacity)
         {
             _keys = new Dictionary<TKey, TValue>(capacity);
             _values = new Dictionary<TValue, TKey>(capacity);
         }
+
+        /// <summary>
+        ///     Index Pool
+        /// </summary>
+        protected abstract IIndexPool<TKey> IndexPool { get; }
 
         /// <summary>
         ///     Key
@@ -90,66 +100,13 @@ namespace Erinn
         ///     Remove key
         /// </summary>
         /// <param name="key">Key</param>
-        public bool Remove(TKey key)
-        {
-            if (!_keys.TryGetValue(key, out var value))
-                return false;
-            _values.Remove(value);
-            _keys.Remove(key);
-            return true;
-        }
-
-        /// <summary>
-        ///     Remove value
-        /// </summary>
-        /// <param name="value">Value</param>
-        public bool Remove(TValue value)
-        {
-            if (!_values.TryGetValue(value, out var key))
-                return false;
-            _keys.Remove(key);
-            _values.Remove(value);
-            return true;
-        }
-
-        /// <summary>
-        ///     Remove key
-        /// </summary>
-        /// <param name="key">Key</param>
-        /// <param name="value">Value</param>
-        public bool TryRemove(TKey key, out TValue value)
-        {
-            if (!_keys.TryGetValue(key, out value))
-                return false;
-            _values.Remove(value);
-            _keys.Remove(key);
-            return true;
-        }
-
-        /// <summary>
-        ///     Remove value
-        /// </summary>
-        /// <param name="value">Value</param>
-        /// <param name="key">Key</param>
-        public bool TryRemove(TValue value, out TKey key)
-        {
-            if (!_values.TryGetValue(value, out key))
-                return false;
-            _keys.Remove(key);
-            _values.Remove(value);
-            return true;
-        }
-
-        /// <summary>
-        ///     Remove key
-        /// </summary>
-        /// <param name="key">Key</param>
         public bool RemoveKey(TKey key)
         {
             if (!_keys.TryGetValue(key, out var value))
                 return false;
             _values.Remove(value);
             _keys.Remove(key);
+            IndexPool.Return(key);
             return true;
         }
 
@@ -163,6 +120,7 @@ namespace Erinn
                 return false;
             _keys.Remove(key);
             _values.Remove(value);
+            IndexPool.Return(key);
             return true;
         }
 
@@ -177,6 +135,7 @@ namespace Erinn
                 return false;
             _values.Remove(value);
             _keys.Remove(key);
+            IndexPool.Return(key);
             return true;
         }
 
@@ -191,22 +150,9 @@ namespace Erinn
                 return false;
             _keys.Remove(key);
             _values.Remove(value);
+            IndexPool.Return(key);
             return true;
         }
-
-        /// <summary>
-        ///     Get value
-        /// </summary>
-        /// <param name="key">Key</param>
-        /// <returns>Value</returns>
-        public TValue Get(TKey key) => _keys[key];
-
-        /// <summary>
-        ///     Get Key
-        /// </summary>
-        /// <param name="value">Value</param>
-        /// <returns>Key</returns>
-        public TKey Get(TValue value) => _values[value];
 
         /// <summary>
         ///     Get value
@@ -221,22 +167,6 @@ namespace Erinn
         /// <param name="value">Value</param>
         /// <returns>Key</returns>
         public TKey GetKey(TValue value) => _values[value];
-
-        /// <summary>
-        ///     Get value
-        /// </summary>
-        /// <param name="key">Key</param>
-        /// <param name="value">Value</param>
-        /// <returns>Successfully obtained</returns>
-        public bool TryGet(TKey key, out TValue value) => _keys.TryGetValue(key, out value);
-
-        /// <summary>
-        ///     Get Key
-        /// </summary>
-        /// <param name="value">Value</param>
-        /// <param name="key">Key</param>
-        /// <returns>Successfully obtained</returns>
-        public bool TryGet(TValue value, out TKey key) => _values.TryGetValue(value, out key);
 
         /// <summary>
         ///     Get value
@@ -283,46 +213,80 @@ namespace Erinn
         {
             _keys.Clear();
             _values.Clear();
+            IndexPool.Clear();
         }
+
+        /// <summary>
+        ///     Remove key
+        /// </summary>
+        /// <param name="key">Key</param>
+        public bool Remove(TKey key) => RemoveKey(key);
+
+        /// <summary>
+        ///     Remove value
+        /// </summary>
+        /// <param name="value">Value</param>
+        public bool Remove(TValue value) => RemoveValue(value);
+
+        /// <summary>
+        ///     Remove key
+        /// </summary>
+        /// <param name="key">Key</param>
+        /// <param name="value">Value</param>
+        public bool TryRemove(TKey key, out TValue value) => TryRemoveKey(key, out value);
+
+        /// <summary>
+        ///     Remove value
+        /// </summary>
+        /// <param name="value">Value</param>
+        /// <param name="key">Value</param>
+        public bool TryRemove(TValue value, out TKey key) => TryRemoveValue(value, out key);
+
+        /// <summary>
+        ///     Get value
+        /// </summary>
+        /// <param name="key">Key</param>
+        /// <returns>Value</returns>
+        public TValue Get(TKey key) => GetValue(key);
+
+        /// <summary>
+        ///     Get Key
+        /// </summary>
+        /// <param name="value">Value</param>
+        /// <returns>Key</returns>
+        public TKey Get(TValue value) => GetKey(value);
+
+        /// <summary>
+        ///     Get value
+        /// </summary>
+        /// <param name="key">Key</param>
+        /// <param name="value">Value</param>
+        /// <returns>Successfully obtained</returns>
+        public bool TryGet(TKey key, out TValue value) => TryGetValue(key, out value);
+
+        /// <summary>
+        ///     Get Key
+        /// </summary>
+        /// <param name="value">Value</param>
+        /// <param name="key">Key</param>
+        /// <returns>Successfully obtained</returns>
+        public bool TryGet(TValue value, out TKey key) => TryGetKey(value, out key);
+
+        /// <summary>
+        ///     Distribution
+        /// </summary>
+        public TKey Allocate() => IndexPool.Rent();
 
         /// <summary>
         ///     Add
         /// </summary>
-        /// <param name="key">Key</param>
         /// <param name="value">Value</param>
-        public void Add(TKey key, TValue value)
+        public TKey Add(TValue value)
         {
+            var key = IndexPool.Rent();
             _keys[key] = value;
             _values[value] = key;
-        }
-
-        /// <summary>
-        ///     Ensure capacity
-        /// </summary>
-        /// <param name="capacity">Capacity</param>
-        public void EnsureCapacity(int capacity)
-        {
-            _keys.EnsureCapacity(capacity);
-            _values.EnsureCapacity(capacity);
-        }
-
-        /// <summary>
-        ///     Reduce capacity
-        /// </summary>
-        public void TrimExcess()
-        {
-            _keys.TrimExcess();
-            _values.TrimExcess();
-        }
-
-        /// <summary>
-        ///     Reduce capacity
-        /// </summary>
-        /// <param name="capacity">Capacity</param>
-        public void TrimExcess(int capacity)
-        {
-            _keys.TrimExcess(capacity);
-            _values.TrimExcess(capacity);
+            return key;
         }
     }
 }
