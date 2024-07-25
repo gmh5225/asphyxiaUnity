@@ -63,6 +63,15 @@ namespace Mirror
             if (_register)
                 return;
             _register = true;
+            if (Utp is Netcode.NetcodeTransport udp)
+            {
+                if (!isServer)
+                    udp.OnUserTransportEvent += HandleClientEvent;
+                else
+                    udp.OnUserTransportEvent += HandleServerEvent;
+                return;
+            }
+
             if (!isServer)
                 Utp.OnTransportEvent += HandleClientEvent;
             else

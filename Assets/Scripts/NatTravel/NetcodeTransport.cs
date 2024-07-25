@@ -20,7 +20,6 @@ namespace Netcode
         public ConnectionAddressData ServiceData;
         public string LocalEndPoint;
         private FieldInfo _driverFieldInfo;
-        private TransportEventDelegate _connectionManagerEvent;
         private NetworkDriver _driver => (NetworkDriver)_driverFieldInfo.GetValue(this);
 
         private void Start() => _driverFieldInfo = typeof(UnityTransport).GetField("m_Driver", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -34,12 +33,18 @@ namespace Netcode
             GUILayout.EndArea();
         }
 
+        public event TransportEventDelegate OnUserTransportEvent;
+
         public override void Initialize(NetworkManager networkManager = null)
         {
             base.Initialize(networkManager);
-            var connectionManager = (NetworkConnectionManager)typeof(NetworkManager).GetField("ConnectionManager", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(networkManager);
-            var methodInfo = typeof(NetworkConnectionManager).GetMethod("HandleNetworkEvent", BindingFlags.Instance | BindingFlags.NonPublic);
-            _connectionManagerEvent = (TransportEventDelegate)Delegate.CreateDelegate(typeof(TransportEventDelegate), connectionManager, methodInfo);
+            if (networkManager != null)
+            {
+                var connectionManager = (NetworkConnectionManager)typeof(NetworkManager).GetField("ConnectionManager", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(networkManager);
+                var methodInfo = typeof(NetworkConnectionManager).GetMethod("HandleNetworkEvent", BindingFlags.Instance | BindingFlags.NonPublic);
+                OnUserTransportEvent = (TransportEventDelegate)Delegate.CreateDelegate(typeof(TransportEventDelegate), connectionManager, methodInfo);
+            }
+
             var eventInfo = typeof(NetworkTransport).GetEvent("OnTransportEvent", BindingFlags.Instance | BindingFlags.Public);
             var fieldInfo = typeof(NetworkTransport).GetField(eventInfo.Name, BindingFlags.Instance | BindingFlags.NonPublic);
             fieldInfo.SetValue(this, null);
@@ -51,6 +56,7 @@ namespace Netcode
             ServiceId = 0UL;
             LocalEndPoint = null;
             base.Shutdown();
+            OnUserTransportEvent = null;
             OnTransportEvent -= HandleNetworkEvent;
         }
 
@@ -95,7 +101,7 @@ namespace Netcode
                 return;
             }
 
-            _connectionManagerEvent(eventType, clientId, payload, receiveTime);
+            OnUserTransportEvent?.Invoke(eventType, clientId, payload, receiveTime);
         }
 
         private static ulong ParseClientId(NetworkConnection utpConnectionId) => Unsafe.As<NetworkConnection, ulong>(ref utpConnectionId);

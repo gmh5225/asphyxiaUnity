@@ -430,7 +430,8 @@ GameObject:
   - component: {fileID: 1282001520}
   - component: {fileID: 1282001522}
   - component: {fileID: 1282001524}
-  - component: {fileID: 1282001525}
+  - component: {fileID: 1282001526}
+  - component: {fileID: 1282001527}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -474,7 +475,7 @@ MonoBehaviour:
   autoConnectClientBuild: 0
   offlineScene: 
   onlineScene: 
-  transport: {fileID: 1282001525}
+  transport: {fileID: 1282001526}
   networkAddress: localhost
   maxConnections: 100
   disconnectInactiveConnections: 0
@@ -530,7 +531,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   offsetX: 0
   offsetY: 0
---- !u!114 &1282001525
+--- !u!114 &1282001526
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -539,12 +540,43 @@ MonoBehaviour:
   m_GameObject: {fileID: 1282001517}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a44ab4605baa439d9221799381f40dc3, type: 3}
+  m_Script: {fileID: 11500000, guid: db818962ace24a6a801d607fe325912a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ServiceIPAddress: 127.0.0.1
-  ServicePort: 7778
-  MaxPeers: 100
+  Utp: {fileID: 1282001527}
+--- !u!114 &1282001527
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1282001517}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6bcd812fa6c4f54948b7c22a1009e5a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_ProtocolType: 0
+  m_MaxPacketQueueSize: 128
+  m_MaxPayloadSize: 6144
+  m_HeartbeatTimeoutMS: 500
+  m_ConnectTimeoutMS: 1000
+  m_MaxConnectAttempts: 60
+  m_DisconnectTimeoutMS: 30000
+  ConnectionData:
+    Address: 127.0.0.1
+    Port: 7777
+    ServerListenAddress: 0.0.0.0
+  DebugSimulator:
+    PacketDelayMS: 0
+    PacketJitterMS: 0
+    PacketDropRate: 0
+  ServiceId: 0
+  ServiceData:
+    Address: 127.0.0.1
+    Port: 7778
+    ServerListenAddress: 
+  LocalEndPoint: 
 --- !u!1 &1458789072
 GameObject:
   m_ObjectHideFlags: 0
