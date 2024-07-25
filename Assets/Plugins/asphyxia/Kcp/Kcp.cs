@@ -22,7 +22,7 @@ namespace KCP
     /// <summary>
     ///     Kcp
     /// </summary>
-    public sealed unsafe class Kcp : IDisposable
+    internal sealed unsafe class Kcp : IDisposable
     {
         /// <summary>
         ///     Kcp
