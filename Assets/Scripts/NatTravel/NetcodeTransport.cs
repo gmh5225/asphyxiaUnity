@@ -48,6 +48,8 @@ namespace Netcode
 
         public override void Shutdown()
         {
+            ServiceId = 0UL;
+            LocalEndPoint = null;
             base.Shutdown();
             OnTransportEvent -= HandleNetworkEvent;
         }
