@@ -1,7 +1,7 @@
 {
     "name": "asphyxia",
     "rootNamespace": "asphyxia",
-    "references": [],
+    "references": ["GUID:873f8909502960347af216a1cd43568a"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,

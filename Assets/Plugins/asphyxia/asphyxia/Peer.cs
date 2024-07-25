@@ -6,9 +6,9 @@
 #if UNITY_2021_3_OR_NEWER || GODOT
 using System;
 #endif
-using System.Net;
 using System.Runtime.InteropServices;
 using KCP;
+using NanoSockets;
 using static asphyxia.Settings;
 using static asphyxia.Time;
 using static asphyxia.PeerState;
@@ -52,7 +52,7 @@ namespace asphyxia
         /// <summary>
         ///     IPEndPoint
         /// </summary>
-        public readonly IPEndPoint IPEndPoint;
+        public readonly NanoIPEndPoint IPEndPoint;
 
         /// <summary>
         ///     Kcp
@@ -104,11 +104,11 @@ namespace asphyxia
         /// <param name="sendBuffer">Buffer</param>
         /// <param name="outputBuffer">Buffer</param>
         /// <param name="state">State</param>
-        internal Peer(uint conversationId, Host host, uint id, EndPoint ipEndPoint, byte* sendBuffer, byte* outputBuffer, PeerState state = PeerState.None)
+        internal Peer(uint conversationId, Host host, uint id, NanoIPEndPoint ipEndPoint, byte* sendBuffer, byte* outputBuffer, PeerState state = PeerState.None)
         {
             _host = host;
             Id = id;
-            IPEndPoint = (IPEndPoint)ipEndPoint;
+            IPEndPoint = ipEndPoint;
             _sendBuffer = sendBuffer;
             _outputBuffer = outputBuffer;
             _state = state;
@@ -148,7 +148,7 @@ namespace asphyxia
         /// </summary>
         /// <param name="buffer">Buffer</param>
         /// <param name="length">Length</param>
-        internal void Input(byte[] buffer, int length)
+        internal void Input(byte* buffer, int length)
         {
             if (_kcp.Input(buffer, length) != 0)
                 return;

@@ -8,20 +8,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 #endif
-using System.Net;
-using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using NanoSockets;
 using static System.Net.Sockets.Socket;
 using static asphyxia.Settings;
 using static System.Runtime.InteropServices.Marshal;
 using static KCP.KCPBASIC;
 
-#pragma warning disable CS8600
-#pragma warning disable CS8603
-#pragma warning disable CS8618
-#pragma warning disable CS8625
 #pragma warning disable CS8632
 
 // ReSharper disable PossibleNullReferenceException
@@ -36,12 +29,7 @@ namespace asphyxia
         /// <summary>
         ///     Socket
         /// </summary>
-        private Socket _socket;
-
-        /// <summary>
-        ///     Buffer
-        /// </summary>
-        private readonly byte[] _socketBuffer = new byte[BUFFER_SIZE];
+        private readonly NanoSocket _socket = new();
 
         /// <summary>
         ///     Buffer
@@ -96,7 +84,7 @@ namespace asphyxia
         /// <summary>
         ///     Remote endPoint
         /// </summary>
-        private EndPoint _remoteEndPoint;
+        private NanoIPEndPoint _remoteEndPoint;
 
         /// <summary>
         ///     Peer
@@ -116,12 +104,12 @@ namespace asphyxia
         /// <summary>
         ///     Is created
         /// </summary>
-        public bool IsSet => _socket != null;
+        public bool IsSet => _socket.IsSet;
 
         /// <summary>
         ///     LocalEndPoint
         /// </summary>
-        public IPEndPoint LocalEndPoint => (IPEndPoint)_socket.LocalEndPoint;
+        public NanoIPEndPoint LocalEndPoint => _socket.LocalEndPoint;
 
         /// <summary>
         ///     Dispose
@@ -133,7 +121,6 @@ namespace asphyxia
                 if (!IsSet)
                     return;
                 _socket.Close();
-                _socket = null;
                 FreeHGlobal((nint)_receiveBuffer);
                 FreeHGlobal((nint)_sendBuffer);
                 FreeHGlobal((nint)_outputBuffer);
@@ -168,8 +155,7 @@ namespace asphyxia
         /// </summary>
         /// <param name="maxPeers">Max peers</param>
         /// <param name="port">Port</param>
-        /// <param name="ipv6">DualMode</param>
-        public void Create(int maxPeers, ushort port = 0, bool ipv6 = false)
+        public void Create(int maxPeers, ushort port = 0)
         {
             lock (_lock)
             {
@@ -179,36 +165,15 @@ namespace asphyxia
                     throw new ArgumentOutOfRangeException(nameof(maxPeers));
                 if (maxPeers == 0)
                     maxPeers = 1;
-                if (!OSSupportsIPv6)
-                    ipv6 = false;
-                IPEndPoint localEndPoint;
-                if (ipv6)
-                {
-                    _socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                        _socket.IOControl(-1744830452, new byte[1], null);
-                    localEndPoint = new IPEndPoint(IPAddress.IPv6Any, port);
-                    if (_remoteEndPoint == null || _remoteEndPoint.AddressFamily != AddressFamily.InterNetworkV6)
-                        _remoteEndPoint = new IPEndPoint(IPAddress.IPv6Any, 0);
-                }
-                else
-                {
-                    _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                    localEndPoint = new IPEndPoint(IPAddress.Any, port);
-                    if (_remoteEndPoint == null || _remoteEndPoint.AddressFamily != AddressFamily.InterNetwork)
-                        _remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
-                }
-
-                _socket.SendBufferSize = SOCKET_BUFFER_SIZE;
-                _socket.ReceiveBufferSize = SOCKET_BUFFER_SIZE;
+                _socket.Create(SOCKET_BUFFER_SIZE, SOCKET_BUFFER_SIZE);
+                var localEndPoint = OSSupportsIPv6 ? NanoIPEndPoint.IPv6Any(port) : NanoIPEndPoint.Any(port);
                 try
                 {
-                    _socket.Bind(localEndPoint);
+                    _socket.Bind(ref localEndPoint);
                 }
                 catch
                 {
                     _socket.Dispose();
-                    _socket = null;
                     throw;
                 }
 
@@ -235,22 +200,20 @@ namespace asphyxia
         /// </summary>
         /// <param name="ipAddress">IPAddress</param>
         /// <param name="port">Port</param>
-        public Peer? Connect(string ipAddress, ushort port) => !IsSet ? null : ConnectInternal(new IPEndPoint(IPAddress.Parse(ipAddress), port));
+        public Peer? Connect(string ipAddress, ushort port) => !IsSet ? null : ConnectInternal(NanoIPEndPoint.Create(ipAddress, port));
 
         /// <summary>
         ///     Connect
         /// </summary>
         /// <param name="remoteEndPoint">Remote endPoint</param>
-        public Peer? Connect(IPEndPoint remoteEndPoint) => !IsSet ? null : ConnectInternal(remoteEndPoint);
+        public Peer? Connect(NanoIPEndPoint remoteEndPoint) => !IsSet ? null : ConnectInternal(remoteEndPoint);
 
         /// <summary>
         ///     Connect
         /// </summary>
         /// <param name="remoteEndPoint">Remote endPoint</param>
-        private Peer? ConnectInternal(IPEndPoint remoteEndPoint)
+        private Peer? ConnectInternal(NanoIPEndPoint remoteEndPoint)
         {
-            if (remoteEndPoint.AddressFamily != _socket.AddressFamily)
-                return null;
             var hashCode = remoteEndPoint.GetHashCode();
             if (_peers.TryGetValue(hashCode, out var peer))
                 return peer;
@@ -287,14 +250,14 @@ namespace asphyxia
         {
             if (!IsSet)
                 return;
-            PingInternal(new IPEndPoint(IPAddress.Parse(ipAddress), port));
+            PingInternal(NanoIPEndPoint.Create(ipAddress, port));
         }
 
         /// <summary>
         ///     Ping
         /// </summary>
         /// <param name="remoteEndPoint">Remote endPoint</param>
-        public void Ping(IPEndPoint remoteEndPoint)
+        public void Ping(NanoIPEndPoint remoteEndPoint)
         {
             if (!IsSet)
                 return;
@@ -305,10 +268,8 @@ namespace asphyxia
         ///     Ping
         /// </summary>
         /// <param name="remoteEndPoint">Remote endPoint</param>
-        private void PingInternal(IPEndPoint remoteEndPoint)
+        private void PingInternal(NanoIPEndPoint remoteEndPoint)
         {
-            if (remoteEndPoint.AddressFamily != _socket.AddressFamily)
-                return;
             _sendBuffer[0] = (byte)Header.Ping;
             Insert(new OutgoingCommand(remoteEndPoint, _sendBuffer, 1));
         }
@@ -318,30 +279,17 @@ namespace asphyxia
         /// </summary>
         public void Service()
         {
-            var remoteEndPoint = _remoteEndPoint.GetHashCode();
-            while (_socket.Poll(0, SelectMode.SelectRead))
+            var remoteEndPoint = _remoteEndPoint;
+            while (_socket.Poll(0) && _socket.Receive(_receiveBuffer, BUFFER_SIZE, out var count, ref _remoteEndPoint))
             {
-                int count;
-                try
-                {
-                    count = _socket.ReceiveFrom(_socketBuffer, 0, BUFFER_SIZE, SocketFlags.None, ref _remoteEndPoint);
-                }
-                catch
-                {
-                    continue;
-                }
-
-                if (count <= 0)
-                    break;
-                var hashCode = _remoteEndPoint.GetHashCode();
                 try
                 {
                     if (count < (int)REVERSED_HEAD + (int)OVERHEAD)
                     {
-                        if (count == 8 && _socketBuffer[0] == (byte)Header.Disconnect && _socketBuffer[1] == (byte)Header.DisconnectAcknowledge && _socketBuffer[2] == (byte)Header.Disconnect && _socketBuffer[3] == (byte)Header.DisconnectAcknowledge)
+                        if (count == 8 && _receiveBuffer[0] == (byte)Header.Disconnect && _receiveBuffer[1] == (byte)Header.DisconnectAcknowledge && _receiveBuffer[2] == (byte)Header.Disconnect && _receiveBuffer[3] == (byte)Header.DisconnectAcknowledge)
                         {
-                            var conversationId = Unsafe.ReadUnaligned<uint>(ref _socketBuffer[4]);
-                            if (_peer == null || hashCode != remoteEndPoint)
+                            var conversationId = *(uint*)(_receiveBuffer + 4);
+                            if (_peer == null || _remoteEndPoint != remoteEndPoint)
                             {
                                 if (_peers.TryGetValue(_remoteEndPoint.GetHashCode(), out _peer))
                                     _peer.TryDisconnectNow(conversationId);
@@ -355,13 +303,14 @@ namespace asphyxia
                         continue;
                     }
 
-                    if (_peer == null || hashCode != remoteEndPoint)
+                    if (_peer == null || _remoteEndPoint != remoteEndPoint)
                     {
+                        var hashCode = _remoteEndPoint.GetHashCode();
                         if (!_peers.TryGetValue(hashCode, out _peer))
                         {
-                            if (count != 25 || _socketBuffer[24] != (byte)Header.Connect || _peers.Count >= _maxPeers)
+                            if (count != 25 || _receiveBuffer[24] != (byte)Header.Connect || _peers.Count >= _maxPeers)
                                 continue;
-                            var conversationId = Unsafe.ReadUnaligned<uint>(ref _socketBuffer[0]);
+                            var conversationId = *(uint*)_receiveBuffer;
                             _peer = new Peer(conversationId, this, _idPool.TryDequeue(out var id) ? id : _id++, _remoteEndPoint, _sendBuffer, _outputBuffer);
                             _peers[hashCode] = _peer;
                             if (_sentinel == null)
@@ -377,11 +326,11 @@ namespace asphyxia
                         }
                     }
 
-                    _peer.Input(_socketBuffer, count);
+                    _peer.Input(_receiveBuffer, count);
                 }
                 finally
                 {
-                    remoteEndPoint = hashCode;
+                    remoteEndPoint = _remoteEndPoint;
                 }
             }
 
@@ -400,16 +349,7 @@ namespace asphyxia
         {
             while (_outgoingCommands.TryDequeue(out var outgoingCommand))
             {
-                outgoingCommand.CopyTo(_socketBuffer);
-                try
-                {
-                    _socket.SendTo(_socketBuffer, 0, outgoingCommand.Length, SocketFlags.None, outgoingCommand.IPEndPoint);
-                }
-                catch
-                {
-                    //
-                }
-
+                _socket.Send(outgoingCommand.Data, outgoingCommand.Length, &outgoingCommand.IPEndPoint);
                 outgoingCommand.Dispose();
             }
         }

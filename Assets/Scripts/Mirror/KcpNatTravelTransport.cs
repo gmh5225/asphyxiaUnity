@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Concurrent;
-using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using asphyxia;
+using NanoSockets;
 using UnityEngine;
 
 namespace Mirror
@@ -13,9 +13,9 @@ namespace Mirror
         public string ServiceIPAddress;
         public ushort ServicePort;
         public int MaxPeers = 100;
-        private IPEndPoint _serviceIPEndPoint;
-        private IPEndPoint _serverIPEndPoint;
-        private IPEndPoint _localEndPoint;
+        private NanoIPEndPoint _serviceIPEndPoint;
+        private NanoIPEndPoint _serverIPEndPoint;
+        private string _localEndPoint;
         private bool _isServer;
         private Host _host;
         private ConcurrentDictionary<uint, Peer> _peers;
@@ -125,7 +125,7 @@ namespace Mirror
             }
         }
 
-        private void Service()
+        private unsafe void Service()
         {
             Interlocked.Exchange(ref _running, 1);
             while (_running == 1)
@@ -149,7 +149,8 @@ namespace Mirror
                                 case NetworkEventType.Connect:
                                     if (!NetworkClient.isConnected)
                                     {
-                                        var dataPacket = _serverIPEndPoint.CreateDataPacket();
+                                        var dataPacket = DataPacket.Create(sizeof(NanoIPEndPoint));
+                                        Unsafe.Write((void*)dataPacket.Data, _serverIPEndPoint);
                                         try
                                         {
                                             _servicePeer.Send(dataPacket.AsSpan());
@@ -165,23 +166,10 @@ namespace Mirror
                                     var packet = networkEvent.Packet;
                                     try
                                     {
-                                        var span = packet.AsSpan();
-                                        var isLocalEndPoint = span[0] == 0;
-                                        span = span[1..];
-                                        IPAddress address;
-                                        try
-                                        {
-                                            address = new IPAddress(span[..^4]);
-                                        }
-                                        catch
-                                        {
-                                            break;
-                                        }
-
-                                        var port = Unsafe.ReadUnaligned<int>(ref span[^4]);
-                                        var ipEndPoint = new IPEndPoint(address, port);
+                                        var isLocalEndPoint = packet.Length == sizeof(NanoIPEndPoint) + 1;
+                                        var ipEndPoint = Unsafe.Read<NanoIPEndPoint>((void*)packet.Data);
                                         if (isLocalEndPoint)
-                                            _localEndPoint = ipEndPoint;
+                                            _localEndPoint = ipEndPoint.ToString();
                                     }
                                     finally
                                     {
@@ -207,23 +195,10 @@ namespace Mirror
                                     var packet = networkEvent.Packet;
                                     try
                                     {
-                                        var span = packet.AsSpan();
-                                        var isLocalEndPoint = span[0] == 0;
-                                        span = span[1..];
-                                        IPAddress address;
-                                        try
-                                        {
-                                            address = new IPAddress(span[..^4]);
-                                        }
-                                        catch
-                                        {
-                                            break;
-                                        }
-
-                                        var port = Unsafe.ReadUnaligned<int>(ref span[^4]);
-                                        var ipEndPoint = new IPEndPoint(address, port);
+                                        var isLocalEndPoint = packet.Length == sizeof(NanoIPEndPoint) + 1;
+                                        var ipEndPoint = Unsafe.Read<NanoIPEndPoint>((void*)packet.Data);
                                         if (isLocalEndPoint)
-                                            _localEndPoint = ipEndPoint;
+                                            _localEndPoint = ipEndPoint.ToString();
                                         else
                                             _host.Ping(ipEndPoint);
                                     }
@@ -270,10 +245,10 @@ namespace Mirror
 
         public override void ClientConnect(string address)
         {
-            _serviceIPEndPoint = new IPEndPoint(IPAddress.Parse(ServiceIPAddress), ServicePort);
+            _serviceIPEndPoint = NanoIPEndPoint.Create(ServiceIPAddress, ServicePort);
             if (address == "localhost")
                 address = "127.0.0.1";
-            _serverIPEndPoint = new IPEndPoint(IPAddress.Parse(address), Port);
+            _serverIPEndPoint = NanoIPEndPoint.Create(address, Port);
             _isServer = false;
             _host.Create(2);
             _servicePeer = _host.Connect(_serviceIPEndPoint);
@@ -295,7 +270,7 @@ namespace Mirror
 
         public override void ServerStart()
         {
-            _serviceIPEndPoint = new IPEndPoint(IPAddress.Parse(ServiceIPAddress), ServicePort);
+            _serviceIPEndPoint = NanoIPEndPoint.Create(ServiceIPAddress, ServicePort);
             _isServer = true;
             _host.Create(MaxPeers, Port);
             _servicePeer = _host.Connect(_serviceIPEndPoint);

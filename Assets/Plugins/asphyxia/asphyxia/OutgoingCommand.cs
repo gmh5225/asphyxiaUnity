@@ -6,7 +6,7 @@
 #if UNITY_2021_3_OR_NEWER || GODOT
 using System;
 #endif
-using System.Net;
+using NanoSockets;
 using static System.Runtime.InteropServices.Marshal;
 using static System.Runtime.CompilerServices.Unsafe;
 
@@ -20,7 +20,7 @@ namespace asphyxia
         /// <summary>
         ///     IPEndPoint
         /// </summary>
-        public EndPoint IPEndPoint;
+        public NanoIPEndPoint IPEndPoint;
 
         /// <summary>
         ///     Data
@@ -38,19 +38,13 @@ namespace asphyxia
         /// <param name="ipEndPoint">IPEndPoint</param>
         /// <param name="buffer">Data</param>
         /// <param name="length">Length</param>
-        public OutgoingCommand(EndPoint ipEndPoint, byte* buffer, int length)
+        public OutgoingCommand(NanoIPEndPoint ipEndPoint, byte* buffer, int length)
         {
             IPEndPoint = ipEndPoint;
             Data = (byte*)AllocHGlobal(length);
             CopyBlock(Data, buffer, (uint)length);
             Length = length;
         }
-
-        /// <summary>
-        ///     CopyTo
-        /// </summary>
-        /// <param name="dst">Destination</param>
-        public void CopyTo(byte[] dst) => CopyBlock(ref dst[0], ref *Data, (uint)Length);
 
         /// <summary>
         ///     Dispose
