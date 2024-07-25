@@ -42,16 +42,22 @@ namespace Netcode
             OnTransportEvent -= HandleNetworkEvent;
         }
 
+        public override bool StartServer()
+        {
+            ConnectionData.Address = "0.0.0.0";
+            return base.StartServer();
+        }
+
         private void HandleNetworkEvent(NetworkEvent eventType, ulong clientId, ArraySegment<byte> payload, float receiveTime)
         {
             switch (eventType)
             {
                 case NetworkEvent.Data:
-                    var toAddress = Encoding.UTF8.GetString(payload.AsSpan(0, payload.Count - 4));
-                    if (_endPoints.TryGetKey(toAddress, out var toId) && _endPoints.TryGetValue(clientId, out var fromEndPoint))
+                    var toAddress = Encoding.UTF8.GetString(payload);
+                    if (_endPoints.TryGetKey(toAddress, out var toId) && _endPoints.TryGetValue(clientId, out var fromAddress))
                     {
                         _bytes[0] = 1;
-                        var bytes = Encoding.UTF8.GetBytes(fromEndPoint, _bytes.AsSpan(1));
+                        var bytes = Encoding.UTF8.GetBytes(fromAddress, _bytes.AsSpan(1));
                         Send(toId, new ArraySegment<byte>(_bytes, 0, 1 + bytes), NetworkDelivery.Reliable);
                     }
 

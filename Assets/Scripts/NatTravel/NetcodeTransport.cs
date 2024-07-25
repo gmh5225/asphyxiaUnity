@@ -56,11 +56,10 @@ namespace Netcode
         {
             if (clientId == ServiceId)
             {
-                Debug.LogWarning(eventType);
                 switch (eventType)
                 {
                     case NetworkEvent.Data:
-                        var address = Encoding.UTF8.GetString(payload.AsSpan(0, payload.Count - 4));
+                        var address = Encoding.UTF8.GetString(payload.AsSpan(1, payload.Count - 1));
                         if (payload[0] == 0)
                         {
                             LocalEndPoint = address;
@@ -68,7 +67,6 @@ namespace Netcode
                         else if (ServerClientId == 0)
                         {
                             var split = address.Split(':');
-                            NetworkEndPoint.Parse(split[0], ushort.Parse(split[1]));
                             var connection = _driver.Connect(NetworkEndPoint.Parse(split[0], ushort.Parse(split[1])));
                             _driver.Disconnect(connection);
                         }
@@ -104,6 +102,7 @@ namespace Netcode
         {
             if (_driver.IsCreated)
                 return false;
+            ConnectionData.Address = "0.0.0.0";
             var succeeded = ServerBindAndListen(ConnectionData.ListenEndPoint);
             if (!succeeded && _driver.IsCreated)
                 _driver.Dispose();
