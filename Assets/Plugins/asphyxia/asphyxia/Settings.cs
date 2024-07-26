@@ -13,73 +13,58 @@ namespace asphyxia
     public static class Settings
     {
         /// <summary>
-        ///     Max peers
-        /// </summary>
-        public const int MAX_PEERS = 4096;
-
-        /// <summary>
-        ///     Max send events
-        /// </summary>
-        public const int MAX_SEND_EVENTS = MAX_RECEIVE_EVENTS << 1;
-
-        /// <summary>
-        ///     Max receive events
-        /// </summary>
-        public const int MAX_RECEIVE_EVENTS = MAX_PEERS / TICK_INTERVAL;
-
-        /// <summary>
         ///     Socket buffer size
         /// </summary>
-        public const int SOCKET_BUFFER_SIZE = MAX_PEERS * BUFFER_SIZE;
+        public const int SOCKET_BUFFER_SIZE = 2048;
 
         /// <summary>
-        ///     Buffer size
+        ///     Peer ping interval
         /// </summary>
-        public const int BUFFER_SIZE = 2048;
+        public const int PEER_PING_INTERVAL = 500;
 
         /// <summary>
-        ///     Window size
+        ///     Peer receive timeout
         /// </summary>
-        public const int WINDOW_SIZE = 1024;
+        public const int PEER_RECEIVE_TIMEOUT = 5000;
 
         /// <summary>
-        ///     Tick interval
+        ///     Kcp message size
         /// </summary>
-        public const int TICK_INTERVAL = 1;
+        public const int KCP_MESSAGE_SIZE = 2048;
 
         /// <summary>
-        ///     Ping interval
+        ///     Kcp flush buffer size
         /// </summary>
-        public const int PING_INTERVAL = 500;
+        public const int KCP_FLUSH_BUFFER_SIZE = (int)(REVERSED_HEAD + (KCP_MAXIMUM_TRANSMISSION_UNIT + OVERHEAD) * 3);
 
         /// <summary>
-        ///     Receive timeout
+        ///     Kcp maximum transmission unit
         /// </summary>
-        public const int RECEIVE_TIMEOUT = 5000;
+        public const int KCP_MAXIMUM_TRANSMISSION_UNIT = 1400;
 
         /// <summary>
-        ///     Maximum transmission unit
+        ///     Kcp window size
         /// </summary>
-        public const int MAXIMUM_TRANSMISSION_UNIT = 1400;
+        public const int KCP_WINDOW_SIZE = 1024;
 
         /// <summary>
-        ///     Output buffer size
+        ///     Kcp no delay
         /// </summary>
-        public const int OUTPUT_BUFFER_SIZE = (int)(REVERSED_HEAD + (MAXIMUM_TRANSMISSION_UNIT + OVERHEAD) * 3);
+        public const int KCP_NO_DELAY = 1;
 
         /// <summary>
-        ///     No delay
+        ///     Kcp flush interval
         /// </summary>
-        public const int NO_DELAY = 1;
+        public const int KCP_FLUSH_INTERVAL = 1;
 
         /// <summary>
-        ///     Fast resend
+        ///     Kcp fast resend trigger count
         /// </summary>
-        public const int FAST_RESEND = 0;
+        public const int KCP_FAST_RESEND = 0;
 
         /// <summary>
-        ///     No congestion window
+        ///     Kcp no congestion window
         /// </summary>
-        public const int NO_CONGESTION_WINDOW = 1;
+        public const int KCP_NO_CONGESTION_WINDOW = 1;
     }
 }
